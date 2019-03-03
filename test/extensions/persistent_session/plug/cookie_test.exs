@@ -39,7 +39,7 @@ defmodule PowPersistentSession.Plug.CookieTest do
 
   test "call/2 sets pow_persistent_session plug in conn", %{conn: conn, config: config} do
     conn            = Cookie.call(conn, Cookie.init([]))
-    expected_config = [mod: Session, plug: Session] ++ config
+    expected_config = [plug: Session] ++ config
 
     assert {Cookie, ^expected_config} = conn.private[:pow_persistent_session]
     refute conn.resp_cookies[@cookie_key]
@@ -175,39 +175,6 @@ defmodule PowPersistentSession.Plug.CookieTest do
       |> store_persistent(ets, id, {[id: user.id, uid: 2], []})
       |> Cookie.call(Cookie.init([]))
     end
-  end
-
-  # TODO: Remove by 1.1.0
-  test "call/2 is backwards-compatible with just user fetch clause", %{conn: conn, ets: ets} do
-    user = %User{id: 1}
-    id   = "test"
-    conn =
-      conn
-      |> store_persistent(ets, id, id: user.id)
-      |> Cookie.call(Cookie.init([]))
-
-    assert Plug.current_user(conn) == user
-    assert %{value: new_id, max_age: @max_age, path: "/"} = conn.resp_cookies[@cookie_key]
-    refute new_id == id
-    assert PersistentSessionCache.get([backend: ets], id) == :not_found
-    assert PersistentSessionCache.get([backend: ets], new_id) == {[id: 1], []}
-  end
-
-  # TODO: Remove by 1.1.0
-  test "call/2 is backwards-compatible with `:session_fingerprint` metadata", %{conn: conn, ets: ets} do
-    user = %User{id: 1}
-    id   = "test"
-    conn =
-      conn
-      |> store_persistent(ets, id, {[id: user.id], session_fingerprint: "fingerprint"})
-      |> Cookie.call(Cookie.init([]))
-
-    assert Plug.current_user(conn) == user
-    assert %{value: new_id, max_age: @max_age, path: "/"} = conn.resp_cookies[@cookie_key]
-    refute new_id == id
-    assert PersistentSessionCache.get([backend: ets], id) == :not_found
-    assert PersistentSessionCache.get([backend: ets], new_id) == {[id: 1], session_metadata: [fingerprint: "fingerprint"]}
-    assert conn.private[:pow_session_metadata][:fingerprint] == "fingerprint"
   end
 
   test "create/3 with custom TTL", %{conn: conn, config: config} do

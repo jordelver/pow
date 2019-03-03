@@ -132,9 +132,9 @@ defmodule Pow.Plug.Session do
     {store, store_config} = store(config)
     key                   = client_store_fetch(conn, config)
 
-    {key, store.get(store_config, key)}
-    |> convert_old_session_value()
-    |> handle_fetched_session_value(conn, config)
+    store_config
+    |> store.get(key)
+    |> renew_stale_session(conn, config)
   end
 
   @doc """
@@ -208,18 +208,10 @@ defmodule Pow.Plug.Session do
     end
   end
 
-  # TODO: Remove by 1.1.0
-  defp convert_old_session_value({key, {user, timestamp}}) when is_number(timestamp), do: {key, {user, inserted_at: timestamp}}
-  defp convert_old_session_value(any), do: any
+  defp renew_stale_session(:not_found, conn, _config), do: {conn, nil}
+  defp renew_stale_session({user, metadata}, conn, config) when is_list(metadata) do
+    conn = Conn.put_private(conn, :pow_session_metadata, metadata)
 
-  defp handle_fetched_session_value({_key, :not_found}, conn, _config), do: {conn, nil}
-  defp handle_fetched_session_value({_key, {user, metadata}}, conn, config) when is_list(metadata) do
-    conn
-    |> Conn.put_private(:pow_session_metadata, metadata)
-    |> renew_stale_session(user, metadata, config)
-  end
-
-  defp renew_stale_session(conn, user, metadata, config) do
     metadata
     |> Keyword.get(:inserted_at)
     |> session_stale?(config)

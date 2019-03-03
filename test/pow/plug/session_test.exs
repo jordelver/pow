@@ -28,7 +28,7 @@ defmodule Pow.Plug.SessionTest do
   test "call/2 sets plug in :pow_config", %{conn: conn} do
     opts = Session.init(@default_opts)
     conn = Session.call(conn, opts)
-    expected_config = [mod: Session, plug: Session] ++ @default_opts
+    expected_config = [plug: Session] ++ @default_opts
 
     assert is_nil(conn.assigns[:current_user])
     assert conn.private[:pow_config] == expected_config
@@ -170,29 +170,6 @@ defmodule Pow.Plug.SessionTest do
       |> Conn.fetch_session()
       |> Conn.put_session("test_app_auth", "token")
       |> Session.call(opts)
-
-    assert conn.assigns[:current_user] == @user
-  end
-
-  # TODO: Remove by 1.1.0
-  test "backwards compatible", %{conn: conn} do
-    ttl             = 100
-    config          = Keyword.put(@default_opts, :session_ttl_renewal, ttl)
-    stale_timestamp = :os.system_time(:millisecond) - ttl - 1
-
-    @store_config
-    |> Keyword.put(:namespace, "credentials")
-    |> EtsCacheMock.put({"token", {@user, stale_timestamp}})
-
-    opts = Session.init(config)
-    conn =
-      conn
-      |> Conn.fetch_session()
-      |> Conn.put_session(config[:session_key], "token")
-      |> Session.call(opts)
-
-    assert new_session_id = get_session_id(conn)
-    assert new_session_id != "token"
 
     assert conn.assigns[:current_user] == @user
   end
